@@ -1,0 +1,6 @@
+@LootBox.Api_HostAddress = http://localhost:5262
+
+GET {{LootBox.Api_HostAddress}}/
+Accept: application/json
+
+###
