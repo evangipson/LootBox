@@ -13,7 +13,7 @@
 		{
 			// Initialize the image with random noise
 			var image = imageGenerator.GetRandomBytes(width, height);
-			
+
 			// Diffusion process
 			for (int t = 0; t < _timesteps; t++)
 			{

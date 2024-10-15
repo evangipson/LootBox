@@ -73,7 +73,7 @@ namespace LootBox.Logic.Generators
 		private static void WritePngFile(Stream stream, byte[] rgbBytes, int width, int height)
 		{
 			var pixelData = GetPixelBytes(rgbBytes, width, height);
-            var idatLength = BitConverter.GetBytes(pixelData.Length).Reverse().ToArray();
+			var idatLength = BitConverter.GetBytes(pixelData.Length).Reverse().ToArray();
 			byte[] pngFileBytes =
 			[
 				.. ImageChunks.IDAT.SignatureBytes,
