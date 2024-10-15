@@ -147,6 +147,9 @@
 			public byte[] SignatureBytes = new byte[4];
 		}
 
+		/// <summary>
+		/// A collection of <see cref="ImageChunk"/> and <see langword="byte"/> arrays used to encode and decode PNG images.
+		/// </summary>
 		public static class ImageChunks
 		{
 			/// <summary>
@@ -155,7 +158,7 @@
 			public static readonly byte[] Signature = [137, 80, 78, 71, 13, 10, 26, 10];
 
 			/// <summary>
-			/// The "IHDR" image header, must immediately follow the <see cref="Signature"/>.
+			/// The "IHDR" image header, must immediately follow the <see cref="Signature"/> <see cref="ImageChunk"/>.
 			/// </summary>
 			public static readonly ImageChunk IHDR = new()
 			{
@@ -164,24 +167,7 @@
 			};
 
 			/// <summary>
-			/// The "IHDR" image header, must immediately follow the <see cref="Signature"/>.
-			/// </summary>
-			public static readonly ImageChunk IDAT = new()
-			{
-				SignatureBytes = [73, 68, 65, 84]
-			};
-
-			/// <summary>
-			/// The "IHDR" image header, must immediately follow the <see cref="Signature"/>.
-			/// </summary>
-			public static readonly ImageChunk IEND = new()
-			{
-				LengthBytes = [0, 0, 0, 0],
-				SignatureBytes = [73, 69, 78, 68]
-			};
-
-			/// <summary>
-			/// A default configuration for the final five bytes of the IHDR header.
+			/// A default configuration for the final five bytes of the <see cref="IHDR"/> <see cref="ImageChunk"/>.
 			/// </summary>
 			public static readonly byte[] DefaultIHDRConfiguration =
 			[
@@ -191,6 +177,23 @@
 				(byte)FilterMethod.Adaptive,
 				(byte)InterlaceMethod.NoInterlace
 			];
+
+			/// <summary>
+			/// The "IHDR" image header, must immediately follow the <see cref="IHDR"/> <see cref="ImageChunk"/>.
+			/// </summary>
+			public static readonly ImageChunk IDAT = new()
+			{
+				SignatureBytes = [73, 68, 65, 84]
+			};
+
+			/// <summary>
+			/// The "IHDR" image header, must immediately follow the <see cref="IDAT"/> <see cref="ImageChunk"/>.
+			/// </summary>
+			public static readonly ImageChunk IEND = new()
+			{
+				LengthBytes = [0, 0, 0, 0],
+				SignatureBytes = [73, 69, 78, 68]
+			};
 		}
 
 		/// <summary>
