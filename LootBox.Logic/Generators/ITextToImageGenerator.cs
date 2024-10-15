@@ -9,11 +9,8 @@
 		/// Generates an image based on the provided <paramref name="prompt"/>, and
 		/// saves it using the provided <paramref name="fileName"/>.
 		/// </summary>
-		/// <param name="fileName">
-		/// The file name for the generated image.
-		/// </param>
 		/// <param name="prompt">
-		/// A prompt for the image.
+		/// An optional prompt for the image.
 		/// </param>
 		/// <param name="width">
 		/// The width for the generated image.
@@ -21,6 +18,6 @@
 		/// <param name="height">
 		/// The height for the generated image.
 		/// </param>
-		void GenerateImage(string fileName, string prompt, int width = 24, int height = 24);
+		byte[] GenerateImage(string? prompt = null, int width = 200, int height = 400);
 	}
 }

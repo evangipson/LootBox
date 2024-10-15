@@ -16,10 +16,6 @@ namespace LootBox.Api.Controllers
 
 		[HttpGet("[action]")]
 		[Produces(MediaTypeNames.Image.Png)]
-		public PhysicalFileResult Image(string file = "loot-picture.png")
-		{
-			lootManager.GenerateLootImage(file);
-			return PhysicalFile($"{Directory.GetCurrentDirectory()}/{file}", MediaTypeNames.Image.Png);
-		}
+		public FileContentResult Image() => File(lootManager.GenerateLootImage(), MediaTypeNames.Image.Png);
 	}
 }

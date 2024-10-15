@@ -9,7 +9,7 @@
 		private readonly int _timesteps = 10;
 		private readonly Random _random = new();
 
-		public void GenerateImage(string fileName, string prompt, int width = 24, int height = 24)
+		public byte[] GenerateImage(string? prompt = null, int width = 200, int height = 400)
 		{
 			// Initialize the image with random noise
 			var image = imageGenerator.GetRandomBytes(width, height);
@@ -21,7 +21,7 @@
 				image = AddNoise(image, noise, t / _timesteps);
 			}
 
-			imageGenerator.Save(image, fileName, width, height);
+			return imageGenerator.Save(image, width, height);
 		}
 
 		/// <summary>

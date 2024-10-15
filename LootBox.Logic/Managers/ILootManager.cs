@@ -21,12 +21,9 @@ namespace LootBox.Logic.Managers
 		/// <summary>
 		/// Generates an image for the provided <paramref name="item"/>.
 		/// </summary>
-		/// <param name="fileName">
-		/// The file name of the generated image.
-		/// </param>
 		/// <param name="item">
-		/// An <see cref="Item"/> to base the generated image on.
+		/// An optional <see cref="Item"/> to base the generated image on.
 		/// </param>
-		void GenerateLootImage(string fileName, Item? item = null);
+		byte[] GenerateLootImage(Item? item = null);
 	}
 }

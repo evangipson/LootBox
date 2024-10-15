@@ -9,6 +9,6 @@ namespace LootBox.Logic.Managers
 	{
 		public Item GetLoot(int level = 1) => itemFactory.CreateItem(level);
 
-		public void GenerateLootImage(string fileName, Item? item = null) => textToImageGenerator.GenerateImage(fileName, item?.Name ?? string.Empty);
+		public byte[] GenerateLootImage(Item? item = null) => textToImageGenerator.GenerateImage(item?.Name ?? string.Empty);
 	}
 }

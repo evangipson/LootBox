@@ -42,15 +42,12 @@
 		/// <param name="bytes">
 		/// A <see langword="byte"/> array containing image data.
 		/// </param>
-		/// <param name="filename">
-		/// The file name of the image to save.
-		/// </param>
 		/// <param name="width">
 		/// The width of the image.
 		/// </param>
 		/// <param name="height">
 		/// The height of the image.
 		/// </param>
-		void Save(byte[] bytes, string filename, int width, int height);
+		byte[] Save(byte[] bytes, int width, int height);
 	}
 }

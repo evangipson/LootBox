@@ -1,115 +1,38 @@
-﻿namespace LootBox.Logic.Generators
+﻿using LootBox.Logic.Providers;
+using static LootBox.Domain.Constants.PngConstants;
+
+namespace LootBox.Logic.Generators
 {
 	/// <summary>
-	/// An implementation of <see cref="IImageGenerator"/> for PNG.
+	/// An implementation of <see cref="IImageGenerator"/> for generating PNG images.
 	/// </summary>
 	public class PngGenerator : IImageGenerator
 	{
 		private readonly Random _random = new();
 
-		private const byte _ihdrHeaderLength = 13;
-		private const byte _bitDepth = 8;
-		private const byte _colorType = 2;
-		private const byte _compressionMethod = 0;
-		private const byte _filterMethod = 0;
-		private const byte _interlaceMethod = 0;
+		public byte[] GetBytes(int width, int height) => throw new NotSupportedException($"{nameof(GetBytes)} is not supported by {nameof(PngGenerator)}.");
 
-		private uint[]? _crcTable;
-		private uint[] CrcTable
+		public byte[] GetRandomBytes(int width, int height) => new byte[width * height * BytesPerPixel]
+			.Select(@byte => (byte)_random.Next(255))
+			.ToArray();
+
+		public byte[] Save(byte[] bytes, int width, int height)
 		{
-			get
-			{
-				if (_crcTable != null)
-				{
-					return _crcTable;
-				}
+			using MemoryStream memoryStream = new();
 
-				_crcTable = new uint[256];
-				uint poly = 0xedb88320;
-				uint temp;
+			WritePngHeader(memoryStream, width, height);
+			WritePngFile(memoryStream, bytes, width, height);
+			WritePngFooter(memoryStream);
 
-				for (uint i = 0; i < _crcTable.Length; ++i)
-				{
-					temp = i;
-					for (int j = 8; j > 0; --j)
-					{
-						if ((temp & 1) == 1)
-						{
-							temp = (uint)((temp >> 1) ^ poly);
-						}
-						else
-						{
-							temp >>= 1;
-						}
-					}
-					_crcTable[i] = temp;
-				}
-
-				return _crcTable;
-			}
-		}
-
-		private static readonly FileStreamOptions _fileStreamOptions = new()
-		{
-			Mode = FileMode.OpenOrCreate & FileMode.Truncate,
-			Access = FileAccess.Write
-		};
-
-		private static readonly Dictionary<string, byte[]> _pngChunks = new()
-		{
-			/* a signature common to all png files */
-			["Signature"] = [137, 80, 78, 71, 13, 10, 26, 10],
-
-			/* 4-byte length of IHDR chunk */
-			["IHDRLength"] = [0, 0, 0, _ihdrHeaderLength],
-			/* 4-byte header chunk common to all png files */
-			["IHDRHead"] = [73, 72, 68, 82],
-			/* 5-byte PNG information for the tail of the IHDR chunk */
-			["IHDRTail"] = [_bitDepth, _colorType, _compressionMethod, _filterMethod, _interlaceMethod],
-
-			/* a 4-byte signature to begin image data for png files */
-			["IDAT"] = [73, 68, 65, 84],
-
-			/* 4-byte ending signature common to all png files */
-			["IENDLength"] = [0, 0, 0, 0],
-			/* 4-byte ending signature common to all png files */
-			["IEND"] = [73, 69, 78, 68],
-		};
-
-		public byte[] GetBytes(int width, int height)
-		{
-			throw new NotSupportedException($"{nameof(GetBytes)} is not supported by {nameof(PngGenerator)}. Use {nameof(GetRandomBytes)} instead.");
-		}
-
-		public byte[] GetRandomBytes(int width, int height)
-		{
-			var totalBytes = new byte[width * height];
-			return totalBytes.SelectMany(@byte => new byte[]
-			{
-				(byte)_random.Next(0, 255),
-				(byte)_random.Next(0, 255),
-				(byte)_random.Next(0, 255)
-			}).ToArray();
-        }
-
-		public void Save(byte[] bytes, string filename, int width, int height)
-		{
-			using FileStream fileStream = new(filename, _fileStreamOptions);
-
-			fileStream.Write(_pngChunks["Signature"], 0, _pngChunks["Signature"].Length);
-
-			WritePngHeader(fileStream, width, height);
-			WritePngFile(fileStream, bytes);
-			WritePngFooter(fileStream);
-
-			fileStream.Flush();
+			return memoryStream.ToArray();
 		}
 
 		/// <summary>
-		/// Writes a required PNG header chunk (IHDR) to the provided <paramref name="fileStream"/>.
+		/// Writes the <see cref="ImageChunks.Signature"/> and <see cref="ImageChunks.IHDR"/>
+		/// <see cref="ImageChunk"/> bytes to the provided <paramref name="stream"/>.
 		/// </summary>
-		/// <param name="fileStream">
-		/// A <see cref="FileStream"/> that is writing PNG data.
+		/// <param name="stream">
+		/// A <see cref="Stream"/> that is writing PNG data.
 		/// </param>
 		/// <param name="width">
 		/// The width of the image.
@@ -117,86 +40,137 @@
 		/// <param name="height">
 		/// The height of the image.
 		/// </param>
-		private void WritePngHeader(FileStream fileStream, int width, int height)
+		private static void WritePngHeader(Stream stream, int width, int height)
 		{
-			fileStream.Write(_pngChunks["IHDRLength"], 0, _pngChunks["IHDRLength"].Length);
-
-			WriteToPngWithCyclicRedundancy(fileStream,
-			[
-				.. _pngChunks["IHDRHead"],
+			byte[] headerBytes = [
+				.. ImageChunks.IHDR.SignatureBytes,
 				.. BitConverter.GetBytes(width).Reverse().ToArray(),
 				.. BitConverter.GetBytes(height).Reverse().ToArray(),
-				.. _pngChunks["IHDRTail"]
-			]);
+				.. ImageChunks.DefaultIHDRConfiguration
+			];
+
+			stream.Write(ImageChunks.Signature, 0, ImageChunks.Signature.Length);
+			stream.Write(ImageChunks.IHDR.LengthBytes, 0, ImageChunks.IHDR.LengthBytes.Length);
+			WriteToPngWithCyclicRedundancy(stream, headerBytes);
 		}
 
 		/// <summary>
-		/// Writes a <see langword="byte"/> array containing RGB tuples to the provided <paramref name="fileStream"/>.
+		/// Writes the <see cref="ImageChunks.IDAT"/> <see cref="ImageChunk"/> and a <see cref="Pixel"/>
+		/// representation of <paramref name="rgbBytes"/> to the provided <paramref name="stream"/>.
 		/// </summary>
-		/// <param name="fileStream">
-		/// A <see cref="FileStream"/> that is writing PNG data.
+		/// <param name="stream">
+		/// A <see cref="Stream"/> that writes <paramref name="rgbBytes"/> as <see cref="Pixel"/> bytes.
 		/// </param>
 		/// <param name="rgbBytes">
-		/// A <see langword="byte"/> array containing RGB tuples.
+		/// A <see langword="byte"/> array containing R, G, B byte triples.
 		/// </param>
-		private void WritePngFile(FileStream fileStream, byte[] rgbBytes)
+		/// <param name="width">
+		/// The width of the image.
+		/// </param>
+		/// <param name="height">
+		/// The height of the image.
+		/// </param>
+		private static void WritePngFile(Stream stream, byte[] rgbBytes, int width, int height)
 		{
-			var idatLength = BitConverter.GetBytes(rgbBytes.Length).Reverse().ToArray();
-			fileStream.Write(idatLength, 0, idatLength.Length);
-
-			WriteToPngWithCyclicRedundancy(fileStream,
+			var pixelData = GetPixelBytes(rgbBytes, width, height);
+            var idatLength = BitConverter.GetBytes(pixelData.Length).Reverse().ToArray();
+			byte[] pngFileBytes =
 			[
-				.. _pngChunks["IDAT"],
-				.. rgbBytes
-			]);
+				.. ImageChunks.IDAT.SignatureBytes,
+				.. pixelData
+			];
+
+			stream.Write(idatLength, 0, idatLength.Length);
+			stream.Write(pngFileBytes, 0, pngFileBytes.Length);
+			WriteCyclicRedundancyCheck(stream, pngFileBytes);
 		}
 
 		/// <summary>
-		/// Writes a required PNG footer chunk (IEND) to the provided <paramref name="fileStream"/>.
+		/// Writes a required PNG footer chunk (IEND) to the provided <paramref name="stream"/>.
 		/// </summary>
-		/// <param name="fileStream">
-		/// A <see cref="FileStream"/> that is writing PNG data.
+		/// <param name="stream">
+		/// A <see cref="Stream"/> that is writing PNG data.
 		/// </param>
-		private void WritePngFooter(FileStream fileStream)
+		private static void WritePngFooter(Stream stream)
 		{
-			fileStream.Write(_pngChunks["IENDLength"], 0, _pngChunks["IENDLength"].Length);
-			WriteToPngWithCyclicRedundancy(fileStream, _pngChunks["IEND"]);
+			stream.Write(ImageChunks.IEND.LengthBytes, 0, ImageChunks.IEND.LengthBytes.Length);
+			WriteToPngWithCyclicRedundancy(stream, ImageChunks.IEND.SignatureBytes);
 		}
 
 		/// <summary>
-		/// Writes the <paramref name="pngBytes"/> to the <paramref name="fileStream"/>.
+		/// Writes the <paramref name="pngBytes"/> to the <paramref name="stream"/>.
 		/// <para>
 		/// Also writes a CRC32 code after <paramref name="pngBytes"/>. The CRC32 must
 		/// <b>not</b> include the length section of the chunk.
 		/// </para>
 		/// </summary>
-		/// <param name="fileStream">
-		/// A <see cref="FileStream"/> that is writing PNG data.
+		/// <param name="stream">
+		/// A <see cref="Stream"/> that is writing PNG data.
 		/// </param>
 		/// <param name="pngBytes">
 		/// A  <see langword="byte"/> array containing image data.
 		/// </param>
-		private void WriteToPngWithCyclicRedundancy(FileStream fileStream, byte[] pngBytes)
+		private static void WriteToPngWithCyclicRedundancy(Stream stream, byte[] pngBytes)
 		{
-			fileStream.Write(pngBytes, 0, pngBytes.Length);
-			WriteCyclicRedundancyCheck(fileStream, pngBytes);
+			stream.Write(pngBytes, 0, pngBytes.Length);
+			WriteCyclicRedundancyCheck(stream, pngBytes);
 		}
-
 
 		/// <summary>
 		/// Calculates a CRC32 (Cyclic Redundancy Code) for <paramref name="bytes"/>
-		/// of a PNG image, then writes that calculated CRC32 to the <paramref name="fileStream"/>.
+		/// of a PNG image, then writes that calculated CRC32 to the <paramref name="stream"/>.
 		/// </summary>
-		public void WriteCyclicRedundancyCheck(FileStream fileStream, byte[] bytes)
+		public static void WriteCyclicRedundancyCheck(Stream stream, byte[] bytes)
 		{
-			uint crc = 0xffffffff;
-			for (int i = 0; i < bytes.Length; ++i)
+			var crcBytes = CyclicRedundancyCodeProvider.GetRedundancyBytes(bytes);
+			stream.Write(crcBytes, 0, crcBytes.Length);
+		}
+
+		/// <summary>
+		/// Gets a byte array of pixels from the provided <paramref name="rgbBytes"/>.
+		/// </summary>
+		/// <param name="rgbBytes">
+		/// A single-dimensional array of R, G, B triples.
+		/// </param>
+		/// <param name="width">
+		/// The width of the image.
+		/// </param>
+		/// <param name="height">
+		/// The height of the image.
+		/// </param>
+		/// <returns>
+		/// A <see langword="new"/> <see langword="byte"/> array with mapped <see cref="Pixel"/> data.
+		/// </returns>
+		private static byte[] GetPixelBytes(byte[] rgbBytes, int width, int height)
+		{
+			Pixel pixel;
+			int start;
+			var buffer = new byte[BytesPerPixel];
+			var pixelBytes = new byte[rgbBytes.Length + height];
+
+			using MemoryStream readStream = new(rgbBytes);
+
+			for (int row = 0; row < height; row++)
 			{
-				byte index = (byte)(((crc) & 0xff) ^ bytes[i]);
-				crc = (crc >> 8) ^ CrcTable[index];
+				for (int column = 0; column < width; column++)
+				{
+					start = (row * ((width * BytesPerPixel) + 1)) + 1 + (column * BytesPerPixel);
+
+					readStream.Read(buffer, 0, buffer.Length);
+					pixel = new()
+					{
+						R = buffer[0],
+						G = buffer[1],
+						B = buffer[2]
+					};
+
+					pixelBytes[start++] = pixel.R;
+					pixelBytes[start++] = pixel.G;
+					pixelBytes[start++] = pixel.B;
+				}
 			}
 
-			fileStream.Write(BitConverter.GetBytes(~crc).Reverse().ToArray(), 0, 4);
+			return pixelBytes;
 		}
 	}
 }
